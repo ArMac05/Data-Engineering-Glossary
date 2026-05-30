@@ -1,0 +1,7 @@
+packages:
+  - "apps/*"
+  - "pipelines/*"
+
+onlyBuiltDependencies:
+  - sharp
+  - unrs-resolver
