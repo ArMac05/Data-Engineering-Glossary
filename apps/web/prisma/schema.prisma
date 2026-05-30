@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Term {
+  id              String    @id @default(uuid())
+  slug            String    @unique
+  name            String
+  shortDefinition String    @map("short_definition")
+  longExplanation String?   @map("long_explanation")
+  publishedAt     DateTime? @map("published_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // FTS column: maintained by Postgres as a GENERATED column. Declared here so
+  // Prisma knows it exists; the generated expression + GIN index are added via
+  // raw SQL in the migration (Prisma can't express either).
+  searchVector Unsupported("tsvector")? @map("search_vector")
+
+  categories   TermCategory[]
+  relatedFrom  RelatedTerm[]   @relation("RelatedFrom")
+  relatedTo    RelatedTerm[]   @relation("RelatedTo")
+  enrichment   TermEnrichment?
+  embedding    TermEmbedding?
+  quizAttempts QuizAttempt[]
+
+  @@map("terms")
+}
+
+model Category {
+  id          String         @id @default(uuid())
+  slug        String         @unique
+  name        String         @unique
+  description String?
+  terms       TermCategory[]
+
+  @@map("categories")
+}
+
+model TermCategory {
+  termId     String @map("term_id")
+  categoryId String @map("category_id")
+
+  term     Term     @relation(fields: [termId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([termId, categoryId])
+  @@index([categoryId])
+  @@map("term_categories")
+}
+
+model RelatedTerm {
+  id            String @id @default(uuid())
+  termId        String @map("term_id")
+  relatedTermId String @map("related_term_id")
+  relationType  String @map("relation_type")
+
+  term        Term @relation("RelatedFrom", fields: [termId], references: [id], onDelete: Cascade)
+  relatedTerm Term @relation("RelatedTo", fields: [relatedTermId], references: [id], onDelete: Cascade)
+
+  @@unique([termId, relatedTermId, relationType])
+  @@index([relatedTermId])
+  @@map("related_terms")
+}
+
+model TermEnrichment {
+  termId           String   @id @map("term_id")
+  examples         Json     @default("[]")
+  clarification    String?
+  wikipediaSummary String?  @map("wikipedia_summary")
+  wikipediaUrl     String?  @map("wikipedia_url")
+  modelVersion     String   @map("model_version")
+  enrichedAt       DateTime @default(now()) @map("enriched_at")
+
+  term Term @relation(fields: [termId], references: [id], onDelete: Cascade)
+
+  @@map("term_enrichments")
+}
+
+model TermEmbedding {
+  termId       String                     @id @map("term_id")
+  embedding    Unsupported("vector(768)")
+  modelVersion String                     @map("model_version")
+  embeddedAt   DateTime                   @default(now()) @map("embedded_at")
+
+  term Term @relation(fields: [termId], references: [id], onDelete: Cascade)
+
+  @@map("term_embeddings")
+}
+
+model QuizAttempt {
+  id          String   @id @default(uuid())
+  termId      String   @map("term_id")
+  userId      String?  @map("user_id")
+  result      String
+  attemptedAt DateTime @default(now()) @map("attempted_at")
+
+  term Term @relation(fields: [termId], references: [id], onDelete: Cascade)
+
+  @@index([termId])
+  @@map("quiz_attempts")
+}

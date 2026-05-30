@@ -9,6 +9,9 @@ jobs:
   web:
     name: Web — lint, typecheck, format
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://user:password@localhost:5432/db
+      DIRECT_URL: postgresql://user:password@localhost:5432/db
     steps:
       - uses: actions/checkout@v4
 
@@ -23,6 +26,12 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter web exec prisma generate
+
+      - name: Validate Prisma schema
+        run: pnpm --filter web exec prisma validate
 
       - run: pnpm lint
       - run: pnpm typecheck
