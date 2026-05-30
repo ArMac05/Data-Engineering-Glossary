@@ -1,0 +1,71 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Term {
+  id               String        @id @default(uuid())
+  slug             String        @unique
+  term             String
+  shortDefinition  String
+  longExplanation  String?
+  examples         Json?
+  difficulty       Difficulty     @default(BEGINNER)
+
+  categories       TermCategory[]
+  relatedFrom      RelatedTerm[] @relation("RelatedFrom")
+  relatedTo        RelatedTerm[] @relation("RelatedTo")
+
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  quizAttempts     QuizAttempt[]
+}
+
+model Category {
+  id          String         @id @default(uuid())
+  name        String         @unique
+  slug        String         @unique
+  terms       TermCategory[]
+}
+
+model TermCategory {
+  termId     String
+  categoryId String
+
+  term       Term     @relation(fields: [termId], references: [id])
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  @@id([termId, categoryId])
+}
+
+model RelatedTerm {
+  id        String @id @default(uuid())
+
+  fromId    String
+  toId      String
+
+  from      Term   @relation("RelatedFrom", fields: [fromId], references: [id])
+  to        Term   @relation("RelatedTo", fields: [toId], references: [id])
+}
+
+model QuizAttempt {
+  id         String    @id @default(uuid())
+  termId     String
+  correct    Boolean
+  createdAt  DateTime  @default(now())
+
+  term       Term      @relation(fields: [termId], references: [id])
+}
+
+enum Difficulty {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}

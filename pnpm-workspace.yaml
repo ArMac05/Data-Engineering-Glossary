@@ -1,0 +1,7 @@
+packages:
+  - "apps/*"
+  - "pipelines/*"
+
+allowBuilds:
+  sharp: true
+  unrs-resolver: true
