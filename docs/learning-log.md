@@ -44,3 +44,19 @@ A running record of comprehension checkpoints — the question, my answer, and t
 - **Prisma can't model some Postgres objects.** Typed `embedding`/`search_vector` as `Unsupported(...)`; the generated expression and the GIN/HNSW indexes live only in hand-edited migration SQL. Prisma's drift detector will always propose dropping them — never accept those drops; inspect with `migrate diff`, and use `migrate deploy` (no diffing) in CI/prod.
 - **`prisma generate` before typecheck.** The typed client is generated code; a fresh checkout (CI) must run `prisma generate` (with a dummy `DATABASE_URL`) before `tsc`, or `@prisma/client` imports fail.
 - **Supabase pooler connection strings** use `postgres.[project-ref]` as the username (not plain `postgres`), the DB password is shown only once (reset it if lost), and the `DATABASE_URL`/`DIRECT_URL` split is pooled-6543 / direct-5432.
+
+## Phase 2 — Public read-only app
+
+### Q3. Why can the public pages query the database directly with no API endpoint, `useEffect`, or loading spinner — and what would client components need instead?
+
+**My answer (summary):** Guessed it was caching the terms; thought client components would need an API key.
+
+**Correct answer (summary):** It's about *where the code runs*. These are **Server Components** — they execute on the server during the request, where they have direct DB access (Prisma client, `DATABASE_URL`). They `await` the query and render to HTML; the browser receives finished HTML and never touches the DB. (`cache()` only dedupes a repeated query within one request — an optimization, not the reason.) **Client Components** run in the browser, which can't connect to Postgres (no driver, and shipping DB creds to the client is a security hole), so they'd need: (1) a server-side API/Route Handler to query the DB, (2) client-side fetching (`useEffect` + `fetch`/React Query), and (3) loading/error state — which is where the spinner comes from.
+
+### Gotchas from Phase 2
+
+- **JSX structure: attributes go inside the opening tag, text between tags.** A mangled `<a>` (opening tag closed empty, attributes spilled into the body as text) produced confusing errors — first `react/no-unescaped-entities` (ESLint read the attribute quotes as text), then `ts(1382)` (missing `<a` tag-opener). The lint error pointed at the quotes, but the real bug was the broken tag.
+- **Lighthouse must run on a production build.** `next dev` is unminified with no caching, so its Performance score reads misleadingly low. Run `next build && next start`, then Lighthouse (got all 100s).
+- **shadcn pulls `msw`** (needs adding to `allowBuilds`), and its generated files (`button.tsx`, `input.tsx`, `utils.ts`) arrive in shadcn's style — run `pnpm format` so `format:check` passes.
+- **`Unsupported` columns require `$queryRaw`.** FTS on `search_vector` can't use the typed client; raw SQL with a parameterized `${query}` (injection-safe) + `websearch_to_tsquery` (tolerates messy human input).
+- **`params` / `searchParams` are Promises** in Next 16 — `await` them.
