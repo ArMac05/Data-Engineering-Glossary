@@ -44,3 +44,36 @@ A running record of comprehension checkpoints — the question, my answer, and t
 - **Prisma can't model some Postgres objects.** Typed `embedding`/`search_vector` as `Unsupported(...)`; the generated expression and the GIN/HNSW indexes live only in hand-edited migration SQL. Prisma's drift detector will always propose dropping them — never accept those drops; inspect with `migrate diff`, and use `migrate deploy` (no diffing) in CI/prod.
 - **`prisma generate` before typecheck.** The typed client is generated code; a fresh checkout (CI) must run `prisma generate` (with a dummy `DATABASE_URL`) before `tsc`, or `@prisma/client` imports fail.
 - **Supabase pooler connection strings** use `postgres.[project-ref]` as the username (not plain `postgres`), the DB password is shown only once (reset it if lost), and the `DATABASE_URL`/`DIRECT_URL` split is pooled-6543 / direct-5432.
+
+## Phase 2 — Public read-only app
+
+### Q3. Why can the public pages query the database directly with no API endpoint, useEffect, or loading spinner — and what would client components need instead?
+
+**My answer (summary):** Guessed it was caching the terms; thought client components would need an API key.
+
+**Correct answer (summary):** It's about *where the code runs*. These are Server Components — they execute on the server during the request, with direct DB access (Prisma client, `DATABASE_URL`). They `await` the query and render to HTML; the browser receives finished HTML and never touches the DB. (`cache()` only dedupes a repeated query within one request — an optimization, not the reason.) Client Components run in the browser, which can't connect to Postgres (no driver, and shipping DB creds to the client is a security hole), so they'd need: (1) a server-side API/Route Handler, (2) client-side fetching (`useEffect`/React Query), and (3) loading/error state.
+
+### Gotchas from Phase 2
+
+- **JSX: attributes inside the opening tag, text between tags.** A mangled `<a>` produced misleading errors (`react/no-unescaped-entities`, then `ts(1382)`); the lint error pointed at quotes but the real bug was the broken tag.
+- **Lighthouse needs a production build.** `next dev` is unminified — its Performance score reads low. Run `next build && next start` (got all 100s).
+- **`Unsupported` columns need `$queryRaw`.** FTS on `search_vector` uses raw SQL with a parameterized `${query}` + `websearch_to_tsquery` (tolerates messy human input).
+- **`params`/`searchParams` are Promises** in Next 16 — `await` them.
+
+## Phase 3 — Auth & admin panel
+
+### Q4. Why call `requireAdmin()` at the top of every admin page and Route Handler, instead of trusting the proxy/middleware?
+
+**My answer (summary):** requireAdmin always fires on admin pages; the proxy isn't safe because it doesn't block you.
+
+**Correct answer (summary):** Right instinct, two refinements. (1) Our proxy only *refreshes the session* (`getUser()`) — it does no authorization, so it isn't even a gate. (2) Even if auth lived in the proxy it'd be fragile: it runs only on paths in its `matcher` regex, so a gap/typo silently leaves routes unprotected. `requireAdmin()` sits next to the privileged action (the DB write), co-located with what it guards, so a misrouted proxy can't bypass it. Principle: enforce authorization where the sensitive work happens, not at a network layer.
+
+### Gotchas from Phase 3
+
+- **`NEXT_PUBLIC_*` vars are inlined at *build* time**, not read at runtime. CI's "Supabase URL and Key required" meant the *build* lacked them — build steps need the env, and a missing build-time value bakes `undefined` into the bundle.
+- **GitHub secrets take raw values — no quotes.** `.env` uses `KEY="value"` (dotenv strips the quotes); pasting quotes into a secret makes them literal characters. A quoted `ADMIN_EMAILS` broke the allowlist match → `requireAdmin` rejected a valid admin.
+- **`.env` vs shell env vs CI secrets.** A test passed locally because `E2E_ADMIN_PASSWORD` was *exported in the shell* (not in `.env`); CI only had the GitHub secret. Put values in `.env` for reproducibility; don't rely on shell exports.
+- **Next 16 renamed `middleware.ts` → `proxy.ts`** (function `middleware` → `proxy`); Node runtime now.
+- **Vitest's default glob matches `.test.ts` AND `.spec.ts`** — it grabbed the Playwright spec. Scoped Vitest to `**/*.test.ts`; Playwright owns `*.spec.ts`.
+- **Playwright + Next:** `next dev` compiles routes on first hit (slow → tight timeouts flake). Run e2e against `next build && next start` in CI; raise the `expect` timeout and add `retries`.
+- **`app/api/*` = Route Handlers, `app/admin/*` = pages.** Putting a `page.tsx` under `app/api/` broke its relative imports — UI pages never go under `api/`.
