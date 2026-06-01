@@ -78,3 +78,22 @@ A running record of comprehension checkpoints — the question, my answer, and t
 - **Vitest's default glob matches `.test.ts` AND `.spec.ts`** — it grabbed the Playwright spec. Scoped Vitest to `**/*.test.ts`; Playwright owns `*.spec.ts`.
 - **Playwright + Next:** `next dev` compiles routes on first hit (slow → tight timeouts flake). Run e2e against `next build && next start` in CI; raise the `expect` timeout and add `retries`.
 - **`app/api/*` = Route Handlers, `app/admin/*` = pages.** Putting a `page.tsx` under `app/api/` broke its relative imports — UI pages never go under `api/`.
+
+## Phase 4 — Enrichment pipeline (FastAPI + Gemini)
+
+### Q5. Why is enrichment fully decoupled from the term save (fire-and-forget webhook, `/enrich` returns 202, work in a background task)? What breaks if "create term" waited for enrichment?
+
+**My answer (summary):** It would return a 404 error.
+
+**Correct answer (summary):** Not a 404. Two real problems if the save waited: (1) it'd be **slow** — enrichment is a Gemini call + Wikipedia fetch + embedding, ~10–30s, so the admin watches a spinner on every save; (2) it'd be **fragile** — if Gemini is down/rate-limited, the save would fail too, coupling your core admin function to a third party's uptime. Decoupling means the save returns instantly and the term exists regardless; enrichment fills in async, and if it fails the term still shows (sections render conditionally). Principle: don't block a fast, reliable operation on a slow, unreliable one.
+
+### Gotchas from Phase 4
+
+- **`google-genai` is the current SDK** (`google-generativeai` is deprecated). Generation: `gemini-2.5-flash`; embeddings: `gemini-embedding-001` with `output_dimensionality=768` (matches the `vector(768)` schema; normalize the result for non-default dims).
+- **A throwaway `genai.Client()` got garbage-collected mid-request** ("Cannot send a request, as the client has been closed" — its `__del__` closed the httpx transport). Fix: cache it as a singleton (`@lru_cache`).
+- **asyncpg + Supabase:** connect via the direct 5432 URL with `statement_cache_size=0` (pooler-safe), `register_vector(conn)` to bind the embedding, and `ON CONFLICT (term_id) DO UPDATE` for idempotency.
+- **asyncpg and pgvector ship no `py.typed`** → mypy strict needs `ignore_missing_imports` overrides for them.
+- **`ruff check` (lint) ≠ `ruff format` (formatter)** — CI runs both; run `ruff format` right after writing Python (the Python analog of `pnpm format`). Lint-clean code is not necessarily formatted.
+- **Filename typos break imports while mypy still "passes"** (it globs files by path): `__inti__.py`, `schema.py` vs `schemas.py`. The import error is the real signal, not mypy.
+- **Wikipedia's REST API requires a `User-Agent` header** (403 without one).
+- **CI green ≠ merged.** Phase 3 vanished for a session because the PR was never actually merged — always confirm the merge commit lands on `main`.
