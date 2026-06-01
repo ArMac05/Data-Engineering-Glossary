@@ -47,18 +47,19 @@ A running record of comprehension checkpoints — the question, my answer, and t
 
 ## Phase 2 — Public read-only app
 
-### Q3. Why can the public pages query the database directly with no API endpoint, useEffect, or loading spinner — and what would client components need instead?
+### Q3. Why can the public pages query the database directly with no API endpoint, `useEffect`, or loading spinner — and what would client components need instead?
 
 **My answer (summary):** Guessed it was caching the terms; thought client components would need an API key.
 
-**Correct answer (summary):** It's about *where the code runs*. These are Server Components — they execute on the server during the request, with direct DB access (Prisma client, `DATABASE_URL`). They `await` the query and render to HTML; the browser receives finished HTML and never touches the DB. (`cache()` only dedupes a repeated query within one request — an optimization, not the reason.) Client Components run in the browser, which can't connect to Postgres (no driver, and shipping DB creds to the client is a security hole), so they'd need: (1) a server-side API/Route Handler, (2) client-side fetching (`useEffect`/React Query), and (3) loading/error state.
+**Correct answer (summary):** It's about *where the code runs*. These are **Server Components** — they execute on the server during the request, where they have direct DB access (Prisma client, `DATABASE_URL`). They `await` the query and render to HTML; the browser receives finished HTML and never touches the DB. (`cache()` only dedupes a repeated query within one request — an optimization, not the reason.) **Client Components** run in the browser, which can't connect to Postgres (no driver, and shipping DB creds to the client is a security hole), so they'd need: (1) a server-side API/Route Handler to query the DB, (2) client-side fetching (`useEffect` + `fetch`/React Query), and (3) loading/error state — which is where the spinner comes from.
 
 ### Gotchas from Phase 2
 
-- **JSX: attributes inside the opening tag, text between tags.** A mangled `<a>` produced misleading errors (`react/no-unescaped-entities`, then `ts(1382)`); the lint error pointed at quotes but the real bug was the broken tag.
-- **Lighthouse needs a production build.** `next dev` is unminified — its Performance score reads low. Run `next build && next start` (got all 100s).
-- **`Unsupported` columns need `$queryRaw`.** FTS on `search_vector` uses raw SQL with a parameterized `${query}` + `websearch_to_tsquery` (tolerates messy human input).
-- **`params`/`searchParams` are Promises** in Next 16 — `await` them.
+- **JSX structure: attributes go inside the opening tag, text between tags.** A mangled `<a>` (opening tag closed empty, attributes spilled into the body as text) produced confusing errors — first `react/no-unescaped-entities` (ESLint read the attribute quotes as text), then `ts(1382)` (missing `<a` tag-opener). The lint error pointed at the quotes, but the real bug was the broken tag.
+- **Lighthouse must run on a production build.** `next dev` is unminified with no caching, so its Performance score reads misleadingly low. Run `next build && next start`, then Lighthouse (got all 100s).
+- **shadcn pulls `msw`** (needs adding to `allowBuilds`), and its generated files (`button.tsx`, `input.tsx`, `utils.ts`) arrive in shadcn's style — run `pnpm format` so `format:check` passes.
+- **`Unsupported` columns require `$queryRaw`.** FTS on `search_vector` can't use the typed client; raw SQL with a parameterized `${query}` (injection-safe) + `websearch_to_tsquery` (tolerates messy human input).
+- **`params` / `searchParams` are Promises** in Next 16 — `await` them.
 
 ## Phase 3 — Auth & admin panel
 
