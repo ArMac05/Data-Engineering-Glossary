@@ -35,7 +35,9 @@ def mocks(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
     monkeypatch.setattr(flow, "_embed", lambda text: [0.1] * 768)
 
     async def fake_wiki(title: str) -> WikipediaSummary:
-        return WikipediaSummary(summary="From Wikipedia.", url="https://en.wikipedia.org/wiki/Kafka")
+        return WikipediaSummary(
+            summary="From Wikipedia.", url="https://en.wikipedia.org/wiki/Kafka"
+        )
 
     monkeypatch.setattr(flow, "_wikipedia", fake_wiki)
 

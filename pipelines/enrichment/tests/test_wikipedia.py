@@ -13,9 +13,7 @@ async def test_fetch_summary_found() -> None:
             200,
             json={
                 "extract": "A streaming platform.",
-                "content_urls": {
-                    "desktop": {"page": "https://en.wikipedia.org/wiki/Apache_Kafka"}
-                },
+                "content_urls": {"desktop": {"page": "https://en.wikipedia.org/wiki/Apache_Kafka"}},
             },
         )
     )

@@ -10,9 +10,7 @@ USER_AGENT = "DataEngineeringGlossary/1.0 (learning project)"
 
 async def fetch_summary(title: str) -> WikipediaSummary | None:
     url = SUMMARY_URL.format(title=quote(title))
-    async with httpx.AsyncClient(
-        timeout=10.0, headers={"User-Agent": USER_AGENT}
-    ) as client:
+    async with httpx.AsyncClient(timeout=10.0, headers={"User-Agent": USER_AGENT}) as client:
         response = await client.get(url)
 
     if response.status_code == 404:
