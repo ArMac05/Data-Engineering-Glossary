@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { termInputSchema } from "@/lib/schemas";
+import { fireEnrichmentWebhook } from "@/lib/enrichment";
 
 export async function PATCH(
   request: Request,
@@ -31,6 +32,7 @@ export async function PATCH(
       },
     },
   });
+  fireEnrichmentWebhook(id);
 
   return NextResponse.json({ id });
 }
