@@ -5,6 +5,7 @@ import { cache } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { prisma } from "@/lib/prisma";
+import { getRelatedTerms } from "@/lib/related";
 
 type Example = { language: string; code: string; explanation?: string };
 
@@ -48,6 +49,7 @@ export default async function TermPage({
 
   const examples =
     (term.enrichment?.examples as unknown as Example[] | undefined) ?? [];
+  const related = await getRelatedTerms(term.id);
 
   return (
     <article className="space-y-8">
@@ -122,6 +124,27 @@ export default async function TermPage({
               Read more on Wikipedia →
             </a>
           )}
+        </section>
+      )}
+
+      {related.length > 0 && (
+        <section>
+          <h2 className="text-xl font-semibold">Related terms</h2>
+          <ul className="divide-border mt-3 divide-y rounded-lg border">
+            {related.map((r) => (
+              <li key={r.id} className="p-4">
+                <Link
+                  href={`/terms/${r.slug}`}
+                  className="font-medium hover:underline"
+                >
+                  {r.name}
+                </Link>
+                <p className="text-muted-foreground mt-1 text-sm">
+                  {r.shortDefinition}
+                </p>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
     </article>
