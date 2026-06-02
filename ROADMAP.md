@@ -362,6 +362,9 @@ A running list of choices made during planning, in case future-me wonders why:
 | pnpm             | npm, yarn                        | Faster, disk-efficient, first-class monorepo support.                                                                                                                                                                                  |
 | uv               | pip, poetry                      | Modern, fast, single tool for env + lockfile + interpreter.                                                                                                                                                                            |
 | Next.js 16       | Next.js 15 (original spec)       | `create-next-app@latest` shipped Next 16 at scaffold time (2026-05-28). App Router, Server Components, and Route Handlers are unchanged from 15, so we took the current major rather than pinning back. Tailwind v4 landed as planned. |
+| Prisma 6 | Prisma 7 (latest) | v7 needs a `prisma.config.ts`, a driver adapter, and a generated-client output dir. Pinned to v6 for a simpler model and far more learning resources. |
+| Fly.io for FastAPI | Render | Dockerfile + `fly.toml` (infra-as-code) is the stronger portfolio signal and teaches containers/IaC, vs Render's faster dashboard-only deploy. |
+| Reuse one Supabase project (dev + prod) | Separate prod project | Solo project; the existing project already holds schema, seed, and enrichments. Deviates from the ROADMAP's distinct dev/prod guidance — no isolation, so destructive local commands hit live data. |
 
 ---
 
