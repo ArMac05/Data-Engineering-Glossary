@@ -97,3 +97,20 @@ A running record of comprehension checkpoints — the question, my answer, and t
 - **Filename typos break imports while mypy still "passes"** (it globs files by path): `__inti__.py`, `schema.py` vs `schemas.py`. The import error is the real signal, not mypy.
 - **Wikipedia's REST API requires a `User-Agent` header** (403 without one).
 - **CI green ≠ merged.** Phase 3 vanished for a session because the PR was never actually merged — always confirm the merge commit lands on `main`.
+
+## Phase 5 — Semantic search & related terms
+
+### Q6. Semantic search finds Apache Kafka for "streaming data processing" with no shared words. What's being compared, and how does it differ from keyword/FTS? ✅ (got it)
+
+**My answer (summary):** It's the embedding — it ranks terms by cosine of the embeddings.
+
+**Correct + deepened:** Right. The embedding is a 768-number vector that encodes *meaning* — the model maps similar concepts to nearby points in that space, so "streaming data processing" lands near "Apache Kafka — distributed event streaming" despite zero shared words. `<=>` (cosine distance) measures how close two vectors point → similar meaning. FTS (`tsvector @@ tsquery`) instead compares literal word-stems (lexemes) and only matches on word overlap. **FTS matches words; embeddings match meaning** — complementary, hence two search modes.
+
+### Gotchas from Phase 5
+
+- **Related terms = pure SQL** (reuse the term's *stored* embedding, order by pgvector `<=>`); **semantic search = embed the query at request time** then NN lookup. Only the latter calls Gemini.
+- **The query embedding must match the pipeline exactly** — same model (`gemini-embedding-001`), dims (768), and L2 normalization — or the query vector isn't comparable to the stored ones and results are garbage.
+- **Querying pgvector from Prisma needs `$queryRaw`** (the embedding column is `Unsupported`); pass the query vector as a `[v1,v2,...]::vector` literal bound as a parameter.
+- **FTS matches whole-word lexemes, not prefixes/substrings.** `websearch_to_tsquery` can't do prefix; for "type s → Snowflake" build a `to_tsquery` with `:*` per token (sanitize tokens to stay injection-safe). Semantic mode covers the fuzzy "don't know the word" case.
+- **Vitest `@/` alias:** Vite resolves tsconfig paths natively (`resolve: { tsconfigPaths: true }`) — no plugin needed. Use `vi.hoisted()` for mock fns referenced inside `vi.mock()` factories (which are hoisted above imports).
+- **`@google/genai` + `protobufjs`** needed `allowBuilds` entries (the recurring pnpm gate).
