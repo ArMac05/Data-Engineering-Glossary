@@ -1,5 +1,6 @@
 import json
 import logging
+import asyncio
 
 from tenacity import (
     before_sleep_log,
@@ -49,9 +50,9 @@ async def enrich_term(term_id: str) -> None:
             logger.warning(json.dumps({"term_id": term_id, "step": "fetch", "status": "not_found"}))
             return
 
-        generated = _generate(term)
+        generated = await asyncio.to_thread(_generate, term)
         summary = await _wikipedia(term.name)
-        embedding = _embed(_embedding_text(term))
+        embedding = await asyncio.to_thread(_embed, _embedding_text(term))
 
         examples_json = json.dumps([ex.model_dump() for ex in generated.examples])
         await db.upsert_enrichment(

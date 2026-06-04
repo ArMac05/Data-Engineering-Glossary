@@ -1,0 +1,32 @@
+# fly.toml — enrichment FastAPI service
+# Infra-as-code: this file is the source of truth for how the service runs.
+
+app = "data-eng-glossary-enrich"
+primary_region = "iad" # US-East (Ashburn), close to the Supabase us-east region
+
+[build]
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+
+  # Always-on: never stop the machine, keep exactly one running. This is the
+  # deliberate choice that keeps the /enrich background task alive to finish.
+  # (See ROADMAP decision log — the alternative, scale-to-zero, can kill
+  # in-flight enrichment after the 202 is returned.)
+  auto_stop_machines = "off"
+  auto_start_machines = false
+  min_machines_running = 1
+
+  # Health check — Fly polls GET /health and won't route traffic to an
+  # instance that isn't returning 200.
+  [[http_service.checks]]
+    method = "GET"
+    path = "/health"
+    interval = "15s"
+    timeout = "2s"
+    grace_period = "10s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
