@@ -1,6 +1,12 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 
+// Render on every request instead of prerendering at build time.
+// The homepage reflects whatever terms are published in the DB right now,
+// so it must not be frozen into static HTML at build. This also means the
+// build never needs to reach the database — it's pure compilation.
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   const categories = await prisma.category.findMany({
     orderBy: { name: "asc" },
