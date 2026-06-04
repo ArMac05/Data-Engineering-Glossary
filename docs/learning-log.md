@@ -114,3 +114,24 @@ A running record of comprehension checkpoints — the question, my answer, and t
 - **FTS matches whole-word lexemes, not prefixes/substrings.** `websearch_to_tsquery` can't do prefix; for "type s → Snowflake" build a `to_tsquery` with `:*` per token (sanitize tokens to stay injection-safe). Semantic mode covers the fuzzy "don't know the word" case.
 - **Vitest `@/` alias:** Vite resolves tsconfig paths natively (`resolve: { tsconfigPaths: true }`) — no plugin needed. Use `vi.hoisted()` for mock fns referenced inside `vi.mock()` factories (which are hoisted above imports).
 - **`@google/genai` + `protobufjs`** needed `allowBuilds` entries (the recurring pnpm gate).
+
+## Phase 6 — Deployment
+
+### Q7. Before the fix, `enrich_term` called the synchronous `gemini.generate()` directly on the event loop. With one event-loop thread serving the whole app, why did an in-progress enrichment make `GET /health` fail?
+
+**My answer (summary):** The thread was waiting for Gemini's response; figured that when no response came, the loop "ended," which caused the failed health check.
+
+**Correct answer (summary):** Right that the thread was *waiting* — wrong that the loop "ended." The single event-loop thread was **blocked**: stuck synchronously inside the Gemini HTTP call for several seconds. The loop didn't terminate, it was **monopolized** — and while one thread sits inside a blocking call it can't do anything else, so the incoming `GET /health` had no one free to answer it. Fly's check times out after 2s → fails. It wasn't that Gemini gave no response (it did, even after a 503 retry); it's that the loop couldn't multitask during the wait. `asyncio.to_thread(fn, ...)` runs the blocking call on a separate thread and `await`s it, handing the loop back so `/health` keeps answering while Gemini works. **Principle: never make a blocking call directly on the event loop — offload it to a thread (or use an async client).**
+
+### Gotchas from Phase 6
+
+- **`next build` prerenders DB-backed pages at build time.** A Server Component page with no rendering directive is statically generated *during the build*, so the build itself needs a reachable DB. It failed only in CI (prod pooler unreachable from the runner) and passed locally (local DB reachable) — classic works-on-my-machine. `export const dynamic = "force-dynamic"` defers rendering to request time and removes the build-time DB call.
+- **Dynamic `[slug]` routes without `generateStaticParams` aren't prerendered at build** (no params to bake), so they didn't break the build — but at runtime Next can still cache the rendered output and serve a stale, pre-enrichment snapshot. Content that changes needs a freshness directive. A throwaway `?x=1` query string forces a fresh render — handy for telling "stale cache" apart from "data never written."
+- **Vercel env vars only take effect on the next redeploy**, and **preview deployments only receive vars scoped to Preview (or all environments)** — a Production-only var is missing on previews (this is why the webhook no-op'd on the preview). Every deploy off the production branch is tagged "Production"; only the newest is live.
+- **Fly has no permanent free tier for new orgs (since Oct 2024).** An always-on `shared-cpu-1x`/256MB is ~$2/mo, billed **per second the machine is running**, not per request. Fly defaults to **2 machines** (HA) for service apps — double the cost; `fly scale count 1` drops to one.
+- **Scale-to-zero kills fire-and-forget work.** A machine that stops when "idle" (judged by in-flight HTTP requests) can be torn down while a background task kicked off after the `202` is still running → silent partial failure. `min_machines_running = 1` + `auto_stop_machines = "off"` keeps it alive. (Fix the blocking bug in Q7 *before* scaling to one machine, or every enrichment risks an unhealthy-restart.)
+- **A blocking call on the event loop freezes the whole app**, including `/health` — masked here only by the second machine. See Q7.
+- **The webhook secret lives on both sides:** Vercel sends it (`X-Webhook-Secret` header), Fly compares it (`ENRICHMENT_WEBHOOK_SECRET`); any mismatch → 401 and every real webhook is rejected.
+- **`fly secrets set` with `\` line-continuations** pulled the indentation into the secret *names* (`" DATABASE_URL"` is not a valid name). Set each secret on its own single line.
+- **A lint error blocks CI but not `fly deploy`.** Deploy just builds and runs the image — import order doesn't affect runtime — so the app shipped while `ruff` was still red. Two gates, two standards: `ruff check --fix` and commit before pushing.
+- **RLS proof:** an anon-key write to PostgREST returns `401` with `code 42501`, `"new row violates row-level security policy"` — the canonical evidence that `anon` can't write.
