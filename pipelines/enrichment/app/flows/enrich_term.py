@@ -1,6 +1,6 @@
+import asyncio
 import json
 import logging
-import asyncio
 
 from tenacity import (
     before_sleep_log,
