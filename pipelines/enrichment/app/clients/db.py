@@ -21,6 +21,24 @@ async def connect() -> AsyncIterator[asyncpg.Connection]:
         await conn.close()
 
 
+async def ping() -> bool:
+    """Cheap reachability check for /health. Never raises — returns False on
+    any failure so the health endpoint can report status without crashing."""
+    try:
+        conn = await asyncpg.connect(
+            get_settings().database_url,
+            statement_cache_size=0,
+            timeout=5,
+        )
+        try:
+            await conn.fetchval("SELECT 1")
+            return True
+        finally:
+            await conn.close()
+    except Exception:
+        return False
+
+
 async def fetch_term(conn: asyncpg.Connection, term_id: str) -> Term | None:
     row = await conn.fetchrow(
         "SELECT id, name, short_definition, long_explanation FROM terms WHERE id = $1",
