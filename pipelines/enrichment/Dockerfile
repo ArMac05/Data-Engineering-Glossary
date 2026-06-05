@@ -25,6 +25,11 @@ ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONPATH="/app" \
     PYTHONUNBUFFERED=1
 
+# Stamp the build with its git commit so /health can report what's deployed.
+# Pass at deploy time: fly deploy --build-arg GIT_SHA=$(git rev-parse --short HEAD)
+ARG GIT_SHA=unknown
+ENV BUILD_SHA=$GIT_SHA
+
 # Fly routes external traffic to this internal port (see fly.toml).
 EXPOSE 8080
 

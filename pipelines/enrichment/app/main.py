@@ -1,5 +1,6 @@
 from fastapi import BackgroundTasks, FastAPI, Header, HTTPException
 
+from app.clients import db
 from app.config import get_settings
 from app.flows.enrich_term import enrich_term
 from app.models.schemas import EnrichRequest
@@ -8,8 +9,12 @@ app = FastAPI()
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
+async def health() -> dict[str, object]:
+    return {
+        "status": "ok",
+        "build_sha": get_settings().build_sha,
+        "db_reachable": await db.ping(),
+    }
 
 
 @app.post("/enrich", status_code=202)

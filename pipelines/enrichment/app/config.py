@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     database_url: str
     gemini_api_key: str
     enrichment_webhook_secret: str
+    build_sha: str = "unknown"
 
 
 @lru_cache
