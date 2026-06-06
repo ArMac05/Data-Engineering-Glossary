@@ -2,8 +2,12 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { categoryInputSchema } from "@/lib/schemas";
+import { enforceAdminWriteLimit } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
+  const limited = await enforceAdminWriteLimit(request);
+  if (limited) return limited;
+
   await requireAdmin();
   const parsed = categoryInputSchema.safeParse(await request.json());
   if (!parsed.success) {

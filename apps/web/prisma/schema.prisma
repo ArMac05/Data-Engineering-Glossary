@@ -106,3 +106,14 @@ model QuizAttempt {
   @@index([termId])
   @@map("quiz_attempts")
 }
+
+// Fixed-window rate-limit counter. One row per key (e.g. "admin-write:<ip>"):
+// `count` requests since `window_start`. Increment/reset happens in a single
+// atomic SQL upsert (see lib/rate-limit.ts) so concurrent requests can't race.
+model RateLimit {
+  key         String   @id
+  count       Int      @default(0)
+  windowStart DateTime @default(now()) @map("window_start")
+
+  @@map("rate_limits")
+}
