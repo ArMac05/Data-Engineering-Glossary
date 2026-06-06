@@ -3,7 +3,10 @@ from fastapi import BackgroundTasks, FastAPI, Header, HTTPException
 from app.clients import db
 from app.config import get_settings
 from app.flows.enrich_term import enrich_term
+from app.logging_config import setup_logging
 from app.models.schemas import EnrichRequest
+
+setup_logging()
 
 app = FastAPI()
 
