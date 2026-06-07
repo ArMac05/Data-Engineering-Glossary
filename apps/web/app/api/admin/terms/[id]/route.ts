@@ -3,11 +3,15 @@ import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { termInputSchema } from "@/lib/schemas";
 import { fireEnrichmentWebhook } from "@/lib/enrichment";
+import { enforceAdminWriteLimit } from "@/lib/rate-limit";
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const limited = await enforceAdminWriteLimit(request);
+  if (limited) return limited;
+
   await requireAdmin();
   const { id } = await params;
 
@@ -38,9 +42,12 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const limited = await enforceAdminWriteLimit(request);
+  if (limited) return limited;
+
   await requireAdmin();
   const { id } = await params;
   await prisma.term.delete({ where: { id } });

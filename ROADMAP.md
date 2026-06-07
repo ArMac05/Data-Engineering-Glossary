@@ -365,6 +365,8 @@ A running list of choices made during planning, in case future-me wonders why:
 | Prisma 6 | Prisma 7 (latest) | v7 needs a `prisma.config.ts`, a driver adapter, and a generated-client output dir. Pinned to v6 for a simpler model and far more learning resources. |
 | Fly.io for FastAPI | Render | Dockerfile + `fly.toml` (infra-as-code) is the stronger portfolio signal and teaches containers/IaC, vs Render's faster dashboard-only deploy. |
 | Reuse one Supabase project (dev + prod) | Separate prod project | Solo project; the existing project already holds schema, seed, and enrichments. Deviates from the ROADMAP's distinct dev/prod guidance — no isolation, so destructive local commands hit live data. |
+| Supabase Postgres rate limiter | Upstash Redis (ROADMAP spec) | Avoid another free account; reuse the shared DB we already have. Unlike an in-memory limiter, a DB-backed counter works across serverless instances. Login itself is already rate-limited by Supabase Auth, so this targets our own admin write routes as defense-in-depth. |
+| Skipped Sentry (PR3) | Sentry on both services (ROADMAP spec) | Deferred to keep scope down; structured logs (PR2) + platform logs cover the "what happened" case without another account. Can revisit. |
 
 ---
 
