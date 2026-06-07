@@ -43,6 +43,9 @@ jobs:
           curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
           sudo apt-get update
           sudo apt-get install -y postgresql-client-17
+          # Put the v17 binaries first on PATH so `pg_dump` resolves to 17, not
+          # the runner's pre-installed 16 (pg_dump must be >= the server version).
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
 
       - name: Dump public schema
         # --schema=public: back up OUR application data, not Supabase's managed
@@ -50,6 +53,7 @@ jobs:
         # restore to a vanilla Postgres anyway).
         # --no-owner / --no-privileges: portable restore to a different DB/role.
         run: |
+          pg_dump --version   # sanity check: should now print 17.x
           pg_dump "$DIRECT_URL" \
             --schema=public --no-owner --no-privileges \
             --file=backup.sql
