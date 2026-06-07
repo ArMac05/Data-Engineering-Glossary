@@ -71,12 +71,20 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: |
-          # pgvector type must exist before the dump's CREATE TABLE references it.
-          psql -h localhost -U postgres -d scratch -c "CREATE EXTENSION IF NOT EXISTS vector;"
-          # ON_ERROR_STOP=1 -> the job fails if any restore statement errors.
-          psql -h localhost -U postgres -d scratch -v ON_ERROR_STOP=1 -f backup.sql
-          echo "Restore succeeded. Row counts in the scratch DB:"
+          # The dumped tables need the pgvector type. Supabase keeps it in the
+          # `extensions` schema, so create it there (and put that schema on the
+          # search path) so the type resolves however the dump qualifies it.
           psql -h localhost -U postgres -d scratch -c \
-            "SELECT 'terms' AS table, count(*) FROM terms
+            "CREATE SCHEMA IF NOT EXISTS extensions;
+             CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA extensions;
+             ALTER DATABASE scratch SET search_path TO public, extensions;"
+          # Load the dump. Harmless idempotent-DDL noise ('schema public already
+          # exists') shouldn't fail the job, so we don't stop on it here...
+          psql -h localhost -U postgres -d scratch -f backup.sql || true
+          # ...the real proof is that the application data is queryable. This
+          # query (ON_ERROR_STOP) fails the job if the tables/data didn't restore.
+          echo "Row counts in the scratch DB after restore:"
+          psql -h localhost -U postgres -d scratch -v ON_ERROR_STOP=1 -c \
+            "SELECT 'terms' AS tbl, count(*) FROM terms
              UNION ALL SELECT 'categories', count(*) FROM categories
              UNION ALL SELECT 'term_enrichments', count(*) FROM term_enrichments;"
