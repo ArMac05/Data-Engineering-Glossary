@@ -1,0 +1,78 @@
+name: Backup
+
+# Daily logical backup of the application data (public schema) with an
+# automated restore test, so we know the dump is actually restorable — not
+# just that a file was produced.
+on:
+  schedule:
+    - cron: "0 9 * * *" # every day at 09:00 UTC
+  workflow_dispatch: {} # allow manual runs (used to verify this PR)
+
+jobs:
+  backup:
+    name: Dump + verify restore
+    runs-on: ubuntu-latest
+
+    # Throwaway Postgres to restore into. pgvector image so the `vector`
+    # extension our embedding column needs is available.
+    services:
+      scratch:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: scratch
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      # DIRECT_URL = session connection (port 5432). pg_dump needs a real
+      # session; it does NOT work over the transaction pooler (6543).
+      DIRECT_URL: ${{ secrets.DIRECT_URL }}
+
+    steps:
+      - name: Install latest postgresql-client
+        # A newer pg_dump can dump an equal-or-older server, so installing the
+        # latest client sidesteps Supabase-version matching.
+        run: |
+          sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+
+      - name: Dump public schema
+        # --schema=public: back up OUR application data, not Supabase's managed
+        # auth/storage/etc. schemas (those are Supabase's to manage, and don't
+        # restore to a vanilla Postgres anyway).
+        # --no-owner / --no-privileges: portable restore to a different DB/role.
+        run: |
+          pg_dump "$DIRECT_URL" \
+            --schema=public --no-owner --no-privileges \
+            --file=backup.sql
+          gzip -k backup.sql
+          ls -lh backup.sql backup.sql.gz
+
+      - name: Upload backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: backup.sql.gz
+          retention-days: 30
+
+      - name: Verify restore into scratch DB
+        env:
+          PGPASSWORD: postgres
+        run: |
+          # pgvector type must exist before the dump's CREATE TABLE references it.
+          psql -h localhost -U postgres -d scratch -c "CREATE EXTENSION IF NOT EXISTS vector;"
+          # ON_ERROR_STOP=1 -> the job fails if any restore statement errors.
+          psql -h localhost -U postgres -d scratch -v ON_ERROR_STOP=1 -f backup.sql
+          echo "Restore succeeded. Row counts in the scratch DB:"
+          psql -h localhost -U postgres -d scratch -c \
+            "SELECT 'terms' AS table, count(*) FROM terms
+             UNION ALL SELECT 'categories', count(*) FROM categories
+             UNION ALL SELECT 'term_enrichments', count(*) FROM term_enrichments;"
