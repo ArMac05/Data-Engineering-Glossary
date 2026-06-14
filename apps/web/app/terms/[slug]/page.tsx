@@ -6,6 +6,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { prisma } from "@/lib/prisma";
 import { getRelatedTerms } from "@/lib/related";
+import { siteUrl } from "@/lib/site-url";
 
 type Example = { language: string; code: string; explanation?: string };
 
@@ -51,8 +52,25 @@ export default async function TermPage({
     (term.enrichment?.examples as unknown as Example[] | undefined) ?? [];
   const related = await getRelatedTerms(term.id);
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "DefinedTerm",
+    name: term.name,
+    description: term.shortDefinition,
+    url: `${siteUrl()}/terms/${term.slug}`,
+    inDefinedTermSet: {
+      "@type": "DefinedTermSet",
+      name: "Data Engineering Glossary",
+      url: siteUrl(),
+    },
+  };
+
   return (
     <article className="space-y-8">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <div>
         <div className="mb-3 flex flex-wrap gap-2">
           {term.categories.map(({ category }) => (
