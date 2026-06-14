@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { termInputSchema } from "@/lib/schemas";
 import { fireEnrichmentWebhook } from "@/lib/enrichment";
 import { enforceAdminWriteLimit } from "@/lib/rate-limit";
+import { findTermConflict } from "@/lib/term-duplicates";
 
 export async function PATCH(
   request: Request,
@@ -24,21 +26,45 @@ export async function PATCH(
   }
   const { categoryIds, published, longExplanation, ...rest } = parsed.data;
 
-  await prisma.term.update({
-    where: { id },
-    data: {
-      ...rest,
-      longExplanation: longExplanation || null,
-      publishedAt: published ? new Date() : null,
-      categories: {
-        deleteMany: {},
-        create: categoryIds.map((categoryId) => ({ categoryId })),
-      },
-    },
+  const conflict = await findTermConflict({
+    name: parsed.data.name,
+    slug: parsed.data.slug,
+    excludeId: id,
   });
-  fireEnrichmentWebhook(id);
+  if (conflict) {
+    return NextResponse.json(
+      { error: `A term with this ${conflict.field} already exists.`, conflict },
+      { status: 409 },
+    );
+  }
 
-  return NextResponse.json({ id });
+  try {
+    await prisma.term.update({
+      where: { id },
+      data: {
+        ...rest,
+        longExplanation: longExplanation || null,
+        publishedAt: published ? new Date() : null,
+        categories: {
+          deleteMany: {},
+          create: categoryIds.map((categoryId) => ({ categoryId })),
+        },
+      },
+    });
+    fireEnrichmentWebhook(id);
+    return NextResponse.json({ id });
+  } catch (e) {
+    if (
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === "P2002"
+    ) {
+      return NextResponse.json(
+        { error: "A term with this name or slug already exists." },
+        { status: 409 },
+      );
+    }
+    throw e;
+  }
 }
 
 export async function DELETE(

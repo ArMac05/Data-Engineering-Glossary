@@ -1,11 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 type Category = { id: string; name: string };
+type TermConflict = {
+  field: "name" | "slug";
+  id: string;
+  name: string;
+  slug: string;
+};
 type TermInitial = {
   id: string;
   name: string;
@@ -25,6 +31,7 @@ export function TermForm({
 }) {
   const router = useRouter();
   const isEdit = Boolean(term);
+  const excludeId = term?.id;
   const [name, setName] = useState(term?.name ?? "");
   const [slug, setSlug] = useState(term?.slug ?? "");
   const [shortDefinition, setShortDefinition] = useState(
@@ -37,8 +44,41 @@ export function TermForm({
   const [categoryIds, setCategoryIds] = useState<string[]>(
     term?.categoryIds ?? [],
   );
+  const [conflict, setConflict] = useState<TermConflict | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Debounced live duplicate check as the name/slug change. All setState lives
+  // inside the timer so we never call it synchronously during the effect.
+  useEffect(() => {
+    const n = name.trim();
+    const s = slug.trim();
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      if (!n && !s) {
+        setConflict(null);
+        return;
+      }
+      try {
+        const params = new URLSearchParams();
+        if (n) params.set("name", n);
+        if (s) params.set("slug", s);
+        if (excludeId) params.set("excludeId", excludeId);
+        const res = await fetch(`/api/admin/terms/check?${params.toString()}`, {
+          signal: controller.signal,
+        });
+        if (!res.ok) return;
+        const data: { conflict: TermConflict | null } = await res.json();
+        setConflict(data.conflict);
+      } catch {
+        // aborted or network error — ignore
+      }
+    }, 300);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [name, slug, excludeId]);
 
   function toggleCategory(id: string) {
     setCategoryIds((prev) =>
@@ -69,7 +109,13 @@ export function TermForm({
 
     setSaving(false);
     if (!res.ok) {
-      setError("Could not save the term. Check the fields and try again.");
+      if (res.status === 409) {
+        const data = await res.json().catch(() => null);
+        if (data?.conflict) setConflict(data.conflict);
+        else setError("A term with this name or slug already exists.");
+      } else {
+        setError("Could not save the term. Check the fields and try again.");
+      }
       return;
     }
     router.push("/admin");
@@ -86,6 +132,7 @@ export function TermForm({
           id="name"
           value={name}
           onChange={(e) => setName(e.target.value)}
+          aria-invalid={conflict?.field === "name"}
           required
         />
       </div>
@@ -97,6 +144,7 @@ export function TermForm({
           id="slug"
           value={slug}
           onChange={(e) => setSlug(e.target.value)}
+          aria-invalid={conflict?.field === "slug"}
           required
           placeholder="apache-kafka"
         />
@@ -145,8 +193,24 @@ export function TermForm({
         />
         Published
       </label>
+
+      {conflict && (
+        <p className="text-destructive text-sm" role="alert">
+          A term with this {conflict.field} already exists:{" "}
+          <a
+            href={`/terms/${conflict.slug}`}
+            target="_blank"
+            rel="noreferrer"
+            className="font-medium underline underline-offset-4"
+          >
+            {conflict.name}
+          </a>
+          . Choose a different {conflict.field}.
+        </p>
+      )}
       {error && <p className="text-destructive text-sm">{error}</p>}
-      <Button type="submit" disabled={saving}>
+
+      <Button type="submit" disabled={saving || conflict !== null}>
         {saving ? "Saving…" : isEdit ? "Save changes" : "Create term"}
       </Button>
     </form>
