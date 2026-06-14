@@ -45,6 +45,7 @@ export async function PATCH(
         ...rest,
         longExplanation: longExplanation || null,
         publishedAt: published ? new Date() : null,
+        enrichmentStatus: "pending", // an edit re-fires enrichment
         categories: {
           deleteMany: {},
           create: categoryIds.map((categoryId) => ({ categoryId })),
