@@ -53,6 +53,8 @@ pnpm --filter web exec prisma db seed
 
 > **Connection strings matter.** `DATABASE_URL` is the **pooled** connection (port `6543`, `?pgbouncer=true`) used by the app at runtime; `DIRECT_URL` is the **direct** connection (port `5432`) used for migrations. Don't swap them — it's the most common setup mistake.
 
+> **Time to first run:** a fresh clone reaches a running local app in about **10 minutes** — most of that is `pnpm install` and the first Next.js compile.
+
 ## Running locally
 
 Two processes, two terminals:
