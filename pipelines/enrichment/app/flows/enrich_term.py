@@ -82,30 +82,50 @@ async def enrich_term(term_id: str) -> None:
             )
             return
 
-        with _log_step("generate", request_id=request_id, term_id=term_id):
-            generated = await asyncio.to_thread(_generate, term)
-        with _log_step("wikipedia", request_id=request_id, term_id=term_id):
-            summary = await _wikipedia(term.name)
-        with _log_step("embed", request_id=request_id, term_id=term_id):
-            embedding = await asyncio.to_thread(_embed, _embedding_text(term))
+        try:
+            with _log_step("generate", request_id=request_id, term_id=term_id):
+                generated = await asyncio.to_thread(_generate, term)
+            with _log_step("wikipedia", request_id=request_id, term_id=term_id):
+                summary = await _wikipedia(term.name)
+            with _log_step("embed", request_id=request_id, term_id=term_id):
+                embedding = await asyncio.to_thread(_embed, _embedding_text(term))
 
-        with _log_step("persist", request_id=request_id, term_id=term_id):
-            examples_json = json.dumps([ex.model_dump() for ex in generated.examples])
-            await db.upsert_enrichment(
-                conn,
-                term_id=term.id,
-                examples_json=examples_json,
-                clarification=generated.clarification,
-                wikipedia_summary=summary.summary if summary else None,
-                wikipedia_url=summary.url if summary else None,
-                model_version=GENERATION_MODEL,
+            with _log_step("persist", request_id=request_id, term_id=term_id):
+                examples_json = json.dumps(
+                    [ex.model_dump() for ex in generated.examples]
+                )
+                await db.upsert_enrichment(
+                    conn,
+                    term_id=term.id,
+                    examples_json=examples_json,
+                    clarification=generated.clarification,
+                    wikipedia_summary=summary.summary if summary else None,
+                    wikipedia_url=summary.url if summary else None,
+                    model_version=GENERATION_MODEL,
+                )
+                await db.upsert_embedding(
+                    conn,
+                    term_id=term.id,
+                    embedding=embedding,
+                    model_version=EMBEDDING_MODEL,
+                )
+                await db.set_enrichment_status(conn, term_id, "enriched")
+        except Exception:
+            # Record the failure so the admin can see it and re-enrich. Best
+            # effort — if the DB connection itself died, this may also fail.
+            try:
+                await db.set_enrichment_status(conn, term_id, "failed")
+            except Exception:
+                logger.exception("could not record failed enrichment status")
+            logger.warning(
+                "enrichment failed",
+                extra={
+                    "request_id": request_id,
+                    "term_id": term_id,
+                    "step": "failed",
+                },
             )
-            await db.upsert_embedding(
-                conn,
-                term_id=term.id,
-                embedding=embedding,
-                model_version=EMBEDDING_MODEL,
-            )
+            raise
 
         logger.info(
             "enrichment complete",

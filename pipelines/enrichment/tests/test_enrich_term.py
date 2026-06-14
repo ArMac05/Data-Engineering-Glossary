@@ -19,10 +19,12 @@ def mocks(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
 
     upsert_enrichment = AsyncMock()
     upsert_embedding = AsyncMock()
+    set_status = AsyncMock()
     monkeypatch.setattr(flow.db, "connect", fake_connect)
     monkeypatch.setattr(flow.db, "fetch_term", AsyncMock(return_value=term))
     monkeypatch.setattr(flow.db, "upsert_enrichment", upsert_enrichment)
     monkeypatch.setattr(flow.db, "upsert_embedding", upsert_embedding)
+    monkeypatch.setattr(flow.db, "set_enrichment_status", set_status)
 
     monkeypatch.setattr(
         flow,
@@ -41,7 +43,11 @@ def mocks(monkeypatch: pytest.MonkeyPatch) -> SimpleNamespace:
 
     monkeypatch.setattr(flow, "_wikipedia", fake_wiki)
 
-    return SimpleNamespace(upsert_enrichment=upsert_enrichment, upsert_embedding=upsert_embedding)
+    return SimpleNamespace(
+        upsert_enrichment=upsert_enrichment,
+        upsert_embedding=upsert_embedding,
+        set_status=set_status,
+    )
 
 
 async def test_happy_path(mocks: SimpleNamespace) -> None:
@@ -51,6 +57,7 @@ async def test_happy_path(mocks: SimpleNamespace) -> None:
     kwargs = mocks.upsert_enrichment.await_args.kwargs
     assert kwargs["clarification"] == "A plain-English explanation."
     assert kwargs["wikipedia_summary"] == "From Wikipedia."
+    assert mocks.set_status.await_args.args[-2:] == ("t1", "enriched")
 
 
 async def test_gemini_failure_propagates(
@@ -63,6 +70,7 @@ async def test_gemini_failure_propagates(
     with pytest.raises(RuntimeError):
         await flow.enrich_term("t1")
     mocks.upsert_enrichment.assert_not_awaited()
+    assert mocks.set_status.await_args.args[-2:] == ("t1", "failed")
 
 
 async def test_wikipedia_404_is_null(

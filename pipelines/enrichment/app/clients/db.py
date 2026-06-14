@@ -39,6 +39,16 @@ async def ping() -> bool:
         return False
 
 
+async def set_enrichment_status(
+    conn: asyncpg.Connection, term_id: str, status: str
+) -> None:
+    await conn.execute(
+        "UPDATE terms SET enrichment_status = $2 WHERE id = $1",
+        term_id,
+        status,
+    )
+
+
 async def fetch_term(conn: asyncpg.Connection, term_id: str) -> Term | None:
     row = await conn.fetchrow(
         "SELECT id, name, short_definition, long_explanation FROM terms WHERE id = $1",
