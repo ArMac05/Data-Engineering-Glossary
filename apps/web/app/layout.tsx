@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import { Inter, Geist_Mono } from "next/font/google";
 import Link from "next/link";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ProfileMenu } from "@/components/profile-menu";
+import { SearchBox } from "@/components/search-box";
 import { isAdminEmail } from "@/lib/admin-emails";
 import { createClient } from "@/lib/supabase/server";
 import "./globals.css";
@@ -53,20 +52,7 @@ export default async function RootLayout({
               <Link href="/" className="text-lg font-semibold">
                 DE Glossary
               </Link>
-              <form
-                action="/search"
-                className="ml-auto flex w-full max-w-sm gap-2"
-              >
-                <Input
-                  type="search"
-                  name="q"
-                  placeholder="Search terms…"
-                  aria-label="Search terms"
-                />
-                <Button type="submit" variant="secondary">
-                  Search
-                </Button>
-              </form>
+              <SearchBox />
               <ProfileMenu email={email} isAdmin={isAdmin} />
             </div>
           </header>

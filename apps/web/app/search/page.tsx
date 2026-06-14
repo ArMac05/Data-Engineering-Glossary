@@ -1,37 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
+import { keywordSearch, type SearchResult } from "@/lib/keyword-search";
 import { semanticSearch } from "@/lib/semantic-search";
 
-type SearchRow = {
-  id: string;
-  slug: string;
-  name: string;
-  shortDefinition: string;
-};
-
 export const metadata: Metadata = { title: "Search" };
-
-async function keywordSearch(query: string): Promise<SearchRow[]> {
-  const tsquery = query
-    .trim()
-    .split(/\s+/)
-    .map((token) => token.replace(/[^a-zA-Z0-9]/g, ""))
-    .filter(Boolean)
-    .map((token) => `${token}:*`)
-    .join(" & ");
-
-  if (!tsquery) return [];
-
-  return prisma.$queryRaw<SearchRow[]>`
-    SELECT id, slug, name, short_definition AS "shortDefinition"
-    FROM terms
-    WHERE published_at IS NOT NULL
-      AND search_vector @@ to_tsquery('english', ${tsquery})
-    ORDER BY ts_rank_cd(search_vector, to_tsquery('english', ${tsquery})) DESC
-    LIMIT 20
-  `;
-}
 
 export default async function SearchPage({
   searchParams,
@@ -42,7 +14,7 @@ export default async function SearchPage({
   const query = q?.trim() ?? "";
   const semantic = mode === "semantic";
 
-  let results: SearchRow[] = [];
+  let results: SearchResult[] = [];
   if (query) {
     if (semantic) {
       try {
