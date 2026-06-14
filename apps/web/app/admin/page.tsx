@@ -57,34 +57,42 @@ export default async function AdminDashboard() {
         </Button>
       </div>
 
-      <ul className="divide-border divide-y rounded-lg border">
-        {terms.map((term) => (
-          <li
-            key={term.id}
-            className="flex items-center justify-between gap-4 p-4"
-          >
-            <div className="flex items-center gap-2">
-              <Link
-                href={`/terms/${term.slug}`}
-                className="font-medium hover:underline"
-              >
-                {term.name}
-              </Link>
-              {!term.publishedAt && (
-                <span className="text-muted-foreground text-xs">(draft)</span>
-              )}
-              <StatusBadge status={term.enrichmentStatus} />
-            </div>
-            <div className="flex items-center gap-2">
-              <ReEnrichButton id={term.id} />
-              <Button asChild variant="outline" size="sm">
-                <Link href={`/admin/terms/${term.id}/edit`}>Edit</Link>
-              </Button>
-              <DeleteTermButton id={term.id} name={term.name} />
-            </div>
-          </li>
-        ))}
-      </ul>
+      {terms.length === 0 && (
+        <p className="text-muted-foreground rounded-lg border p-4 text-sm">
+          No terms yet — create your first one.
+        </p>
+      )}
+
+      {terms.length > 0 && (
+        <ul className="divide-border divide-y rounded-lg border">
+          {terms.map((term) => (
+            <li
+              key={term.id}
+              className="flex items-center justify-between gap-4 p-4"
+            >
+              <div className="flex items-center gap-2">
+                <Link
+                  href={`/terms/${term.slug}`}
+                  className="font-medium hover:underline"
+                >
+                  {term.name}
+                </Link>
+                {!term.publishedAt && (
+                  <span className="text-muted-foreground text-xs">(draft)</span>
+                )}
+                <StatusBadge status={term.enrichmentStatus} />
+              </div>
+              <div className="flex items-center gap-2">
+                <ReEnrichButton id={term.id} />
+                <Button asChild variant="outline" size="sm">
+                  <Link href={`/admin/terms/${term.id}/edit`}>Edit</Link>
+                </Button>
+                <DeleteTermButton id={term.id} name={term.name} />
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
