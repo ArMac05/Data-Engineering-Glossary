@@ -91,9 +91,7 @@ async def enrich_term(term_id: str) -> None:
                 embedding = await asyncio.to_thread(_embed, _embedding_text(term))
 
             with _log_step("persist", request_id=request_id, term_id=term_id):
-                examples_json = json.dumps(
-                    [ex.model_dump() for ex in generated.examples]
-                )
+                examples_json = json.dumps([ex.model_dump() for ex in generated.examples])
                 await db.upsert_enrichment(
                     conn,
                     term_id=term.id,
