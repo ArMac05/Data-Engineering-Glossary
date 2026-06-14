@@ -40,10 +40,13 @@ test("admin can sign in, create, view, edit, and delete a term", async ({
   await page.getByRole("button", { name: "Save changes" }).click();
   await expect(page).toHaveURL("/admin");
 
-  // delete (accept the confirm dialog), then confirm it's gone
-  page.on("dialog", (dialog) => dialog.accept());
+  // delete: the row's Delete opens a styled confirm dialog; confirm inside it
   await page
     .locator("li", { hasText: name })
+    .getByRole("button", { name: "Delete" })
+    .click();
+  await page
+    .getByRole("alertdialog")
     .getByRole("button", { name: "Delete" })
     .click();
   await expect(page.locator("li", { hasText: name })).toHaveCount(0);
