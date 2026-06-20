@@ -47,6 +47,12 @@ export default async function RootLayout({
     >
       <body className="bg-background text-foreground flex min-h-full flex-col">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <a
+            href="#main-content"
+            className="bg-background focus:ring-ring/50 sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:rounded-md focus:border focus:px-3 focus:py-2 focus:shadow focus:ring-3"
+          >
+            Skip to content
+          </a>
           <header className="border-b">
             <div className="mx-auto flex w-full max-w-4xl items-center gap-4 px-4 py-3">
               <Link href="/" className="text-lg font-semibold">
@@ -57,7 +63,10 @@ export default async function RootLayout({
             </div>
           </header>
 
-          <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-8">
+          <main
+            id="main-content"
+            className="mx-auto w-full max-w-4xl flex-1 px-4 py-8"
+          >
             {children}
           </main>
 

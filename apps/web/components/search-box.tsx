@@ -117,6 +117,7 @@ export function SearchBox() {
           placeholder="Search terms…  ( / )"
           aria-label="Search terms"
           role="combobox"
+          aria-autocomplete="list"
           aria-expanded={open}
           aria-controls="search-suggestions"
           aria-activedescendant={
@@ -133,6 +134,7 @@ export function SearchBox() {
         <ul
           id="search-suggestions"
           role="listbox"
+          aria-label="Search suggestions"
           className="bg-popover text-popover-foreground absolute z-50 mt-1 w-full overflow-hidden rounded-lg border shadow-md"
         >
           {results.map((r, i) => (
