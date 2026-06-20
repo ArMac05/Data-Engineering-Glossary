@@ -1,21 +1,11 @@
 import { test, expect } from "@playwright/test";
 
-const email = process.env.E2E_ADMIN_EMAIL!;
-const password = process.env.E2E_ADMIN_PASSWORD!;
-
-test("admin can sign in, create, view, edit, and delete a term", async ({
-  page,
-}) => {
+// Authentication happens once in auth.setup.ts; this test starts already
+// signed in via the saved storageState (see playwright.config.ts).
+test("admin can create, view, edit, and delete a term", async ({ page }) => {
   const stamp = Date.now();
   const name = `E2E Term ${stamp}`;
   const slug = `e2e-term-${stamp}`;
-
-  // sign in
-  await page.goto("/admin/login");
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page).toHaveURL("/admin");
 
   // create (published)
   await page.goto("/admin/terms/new");
