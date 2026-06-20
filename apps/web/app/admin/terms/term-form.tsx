@@ -18,6 +18,7 @@ type TermInitial = {
   slug: string;
   shortDefinition: string;
   longExplanation: string | null;
+  wikipediaTitle: string | null;
   published: boolean;
   categoryIds: string[];
 };
@@ -39,6 +40,9 @@ export function TermForm({
   );
   const [longExplanation, setLongExplanation] = useState(
     term?.longExplanation ?? "",
+  );
+  const [wikipediaTitle, setWikipediaTitle] = useState(
+    term?.wikipediaTitle ?? "",
   );
   const [published, setPublished] = useState(term?.published ?? false);
   const [categoryIds, setCategoryIds] = useState<string[]>(
@@ -101,6 +105,7 @@ export function TermForm({
           slug,
           shortDefinition,
           longExplanation,
+          wikipediaTitle,
           published,
           categoryIds,
         }),
@@ -148,6 +153,22 @@ export function TermForm({
           required
           placeholder="apache-kafka"
         />
+      </div>
+      <div className="space-y-1">
+        <label htmlFor="wikipediaTitle" className="text-sm font-medium">
+          Wikipedia title{" "}
+          <span className="text-muted-foreground font-normal">(optional)</span>
+        </label>
+        <Input
+          id="wikipediaTitle"
+          value={wikipediaTitle}
+          onChange={(e) => setWikipediaTitle(e.target.value)}
+          placeholder="Leave blank to auto-detect"
+        />
+        <p className="text-muted-foreground text-xs">
+          Exact Wikipedia article title for ambiguous terms (e.g. “Snowflake
+          Inc.”). Blank lets the pipeline decide.
+        </p>
       </div>
       <div className="space-y-1">
         <label htmlFor="shortDefinition" className="text-sm font-medium">

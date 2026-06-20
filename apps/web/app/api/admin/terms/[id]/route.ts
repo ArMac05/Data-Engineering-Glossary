@@ -24,7 +24,8 @@ export async function PATCH(
       { status: 400 },
     );
   }
-  const { categoryIds, published, longExplanation, ...rest } = parsed.data;
+  const { categoryIds, published, longExplanation, wikipediaTitle, ...rest } =
+    parsed.data;
 
   const conflict = await findTermConflict({
     name: parsed.data.name,
@@ -44,6 +45,7 @@ export async function PATCH(
       data: {
         ...rest,
         longExplanation: longExplanation || null,
+        wikipediaTitle: wikipediaTitle || null,
         publishedAt: published ? new Date() : null,
         enrichmentStatus: "pending", // an edit re-fires enrichment
         categories: {

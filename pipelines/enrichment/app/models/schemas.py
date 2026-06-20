@@ -14,6 +14,7 @@ class Term(BaseModel):
     name: str
     short_definition: str
     long_explanation: str | None = None
+    wikipedia_title: str | None = None  # admin override for the Wikipedia lookup
 
 
 class CodeExample(BaseModel):
@@ -27,6 +28,7 @@ class GeneratedContent(BaseModel):
 
     examples: list[CodeExample]
     clarification: str
+    wikipedia_title: str | None = None  # Gemini's suggested canonical article
 
 
 class WikipediaSummary(BaseModel):

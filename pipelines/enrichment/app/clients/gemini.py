@@ -25,7 +25,11 @@ def build_prompt(term: Term) -> str:
         "Produce:\n"
         "1. 'examples': 2-3 short, idiomatic code snippets illustrating the term — "
         "each with a 'language', the 'code', and a one-line 'explanation'.\n"
-        "2. 'clarification': a 2-3 sentence plain-English explanation for a newcomer."
+        "2. 'clarification': a 2-3 sentence plain-English explanation for a newcomer.\n"
+        "3. 'wikipedia_title': the exact title of the most relevant English "
+        "Wikipedia article for this term in a DATA ENGINEERING sense — e.g. for "
+        "'Snowflake' return 'Snowflake Inc.' (the company), not the ice crystal. "
+        "Use null if you're not confident."
     )
 
 

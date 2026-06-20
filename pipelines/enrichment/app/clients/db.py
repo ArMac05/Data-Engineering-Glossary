@@ -49,7 +49,8 @@ async def set_enrichment_status(conn: asyncpg.Connection, term_id: str, status: 
 
 async def fetch_term(conn: asyncpg.Connection, term_id: str) -> Term | None:
     row = await conn.fetchrow(
-        "SELECT id, name, short_definition, long_explanation FROM terms WHERE id = $1",
+        "SELECT id, name, short_definition, long_explanation, wikipedia_title "
+        "FROM terms WHERE id = $1",
         term_id,
     )
     if row is None:
@@ -59,6 +60,7 @@ async def fetch_term(conn: asyncpg.Connection, term_id: str) -> Term | None:
         name=row["name"],
         short_definition=row["short_definition"],
         long_explanation=row["long_explanation"],
+        wikipedia_title=row["wikipedia_title"],
     )
 
 

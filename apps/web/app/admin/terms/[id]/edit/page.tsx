@@ -32,6 +32,7 @@ export default async function EditTermPage({
           slug: term.slug,
           shortDefinition: term.shortDefinition,
           longExplanation: term.longExplanation,
+          wikipediaTitle: term.wikipediaTitle,
           published: term.publishedAt !== null,
           categoryIds: term.categories.map((c) => c.categoryId),
         }}
