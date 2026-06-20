@@ -15,9 +15,18 @@ export default defineConfig({
   projects: [
     { name: "setup", testMatch: /.*\.setup\.ts/ },
     {
+      // Authenticated admin CRUD flow. Reuses the saved session from `setup`.
       name: "chromium",
+      testMatch: /admin\.spec\.ts/,
       dependencies: ["setup"],
       use: { storageState: authFile },
+    },
+    {
+      // Accessibility scan of PUBLIC pages only. No `setup` dependency and no
+      // storageState, so it never signs in — which means it can't trip the
+      // Supabase per-IP auth rate limit the way the admin flow can.
+      name: "a11y",
+      testMatch: /a11y\.spec\.ts/,
     },
   ],
   webServer: {
