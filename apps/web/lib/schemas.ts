@@ -9,6 +9,7 @@ export const termInputSchema = z.object({
     .regex(/^[a-z0-9-]+$/, "Lowercase letters, numbers, and hyphens only"),
   shortDefinition: z.string().trim().min(1, "Short definition is required"),
   longExplanation: z.string().optional(),
+  wikipediaTitle: z.string().optional(),
   published: z.boolean().default(false),
   categoryIds: z.array(z.string()).default([]),
 });

@@ -14,6 +14,7 @@ model Term {
   name            String
   shortDefinition String    @map("short_definition")
   longExplanation String?   @map("long_explanation")
+  wikipediaTitle  String?   @map("wikipedia_title")
   publishedAt     DateTime? @map("published_at")
   enrichmentStatus String   @default("pending") @map("enrichment_status")
   createdAt       DateTime  @default(now()) @map("created_at")

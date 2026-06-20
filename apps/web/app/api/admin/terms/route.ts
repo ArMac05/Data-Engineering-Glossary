@@ -21,7 +21,8 @@ export async function POST(request: Request) {
     );
   }
 
-  const { categoryIds, published, longExplanation, ...rest } = parsed.data;
+  const { categoryIds, published, longExplanation, wikipediaTitle, ...rest } =
+    parsed.data;
 
   const conflict = await findTermConflict({
     name: parsed.data.name,
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
       data: {
         ...rest,
         longExplanation: longExplanation || null,
+        wikipediaTitle: wikipediaTitle || null,
         publishedAt: published ? new Date() : null,
         categories: {
           create: categoryIds.map((categoryId) => ({ categoryId })),

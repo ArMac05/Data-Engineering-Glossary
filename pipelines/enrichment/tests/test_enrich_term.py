@@ -91,3 +91,23 @@ async def test_idempotent_double_run(mocks: SimpleNamespace) -> None:
     await flow.enrich_term("t1")
     assert mocks.upsert_enrichment.await_count == 2
     assert mocks.upsert_embedding.await_count == 2
+
+
+async def test_wikipedia_title_admin_override_wins(
+    mocks: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    term = Term(
+        id="t1",
+        name="Snowflake",
+        short_definition="warehouse",
+        long_explanation=None,
+        wikipedia_title="Snowflake Inc.",
+    )
+    monkeypatch.setattr(flow.db, "fetch_term", AsyncMock(return_value=term))
+    wiki = AsyncMock(return_value=None)
+    monkeypatch.setattr(flow, "_wikipedia", wiki)
+
+    await flow.enrich_term("t1")
+
+    # admin override beats the term name (and any Gemini suggestion)
+    wiki.assert_awaited_with("Snowflake Inc.")
