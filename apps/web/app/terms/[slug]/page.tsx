@@ -87,6 +87,16 @@ export default async function TermPage({
         <p className="text-muted-foreground mt-2 text-lg">
           {term.shortDefinition}
         </p>
+        <p className="text-muted-foreground mt-2 text-xs">
+          Updated{" "}
+          <time dateTime={term.updatedAt.toISOString()}>
+            {term.updatedAt.toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
+          </time>
+        </p>
       </div>
 
       {term.longExplanation && (

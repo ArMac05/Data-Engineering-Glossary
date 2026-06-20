@@ -33,6 +33,12 @@ export default async function HomePage() {
         </p>
       </section>
 
+      {populated.length === 0 && (
+        <p className="text-muted-foreground">
+          No terms have been published yet — check back soon.
+        </p>
+      )}
+
       {populated.map((category) => (
         <section key={category.id}>
           <h2 className="mb-3 text-xl font-semibold">
