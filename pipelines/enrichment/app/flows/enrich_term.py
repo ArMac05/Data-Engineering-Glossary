@@ -87,9 +87,7 @@ async def enrich_term(term_id: str) -> None:
                 generated = await asyncio.to_thread(_generate, term)
             with _log_step("wikipedia", request_id=request_id, term_id=term_id):
                 # admin override > Gemini's suggestion > the term name
-                wiki_title = (
-                    term.wikipedia_title or generated.wikipedia_title or term.name
-                )
+                wiki_title = term.wikipedia_title or generated.wikipedia_title or term.name
                 summary = await _wikipedia(wiki_title)
             with _log_step("embed", request_id=request_id, term_id=term_id):
                 embedding = await asyncio.to_thread(_embed, _embedding_text(term))
