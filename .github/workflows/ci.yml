@@ -59,59 +59,15 @@ jobs:
       - run: uv run mypy .
       - run: uv run pytest
 
-  e2e:
-    name: E2E (Playwright)
-    runs-on: ubuntu-latest
-    # Non-blocking on purpose: the e2e drives real Supabase Auth, which rate-limits
-    # CI's repeated sign-ins/getUser calls, making this job flaky independent of app
-    # correctness (it passes reliably locally and in production). It still runs and
-    # reports here, but merges are not gated on it. Run `pnpm --filter web e2e`
-    # locally for a trustworthy signal. Revisit with a dedicated test Supabase project.
-    continue-on-error: true
-    env:
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      DIRECT_URL: ${{ secrets.DIRECT_URL }}
-      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-      ADMIN_EMAILS: ${{ secrets.ADMIN_EMAILS }}
-      E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
-      E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Generate Prisma client
-        run: pnpm --filter web exec prisma generate
-
-      - name: Install Playwright browser
-        run: pnpm --filter web exec playwright install --with-deps chromium
-
-      - name: Build
-        run: pnpm --filter web build
-
-      - name: Run E2E tests
-        # Only the authenticated admin flow here. The a11y scan runs in its own
-        # blocking job below (it has no auth flakiness, so it shouldn't inherit
-        # this job's continue-on-error).
-        run: pnpm --filter web e2e:chromium
-
   a11y:
     name: Accessibility (axe)
     runs-on: ubuntu-latest
-    # Blocking on purpose: this scan never signs in, so it has none of the
-    # Supabase auth rate-limit flakiness that forced the e2e job to be
-    # non-blocking. A failure here is a real accessibility regression.
+    # The authenticated admin e2e (Playwright `chromium` project) is intentionally
+    # NOT run in CI: it signs in against the shared Supabase project, whose auth
+    # endpoint rate-limits CI's IPs, making it flaky independent of app
+    # correctness. It's a LOCAL pre-merge check instead — `pnpm --filter web
+    # e2e:chromium`. This `a11y` scan never signs in, so it's reliable and blocking;
+    # a failure here is a real accessibility regression.
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       DIRECT_URL: ${{ secrets.DIRECT_URL }}
