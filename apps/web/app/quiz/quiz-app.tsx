@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -12,8 +12,11 @@ import {
   type Question,
   type QuizTerm,
 } from "@/lib/quiz-questions";
+import { dueTermIds, summarize } from "@/lib/srs";
+import { useSrs, recordReview } from "@/lib/srs-store";
 import type { QuizTermWithCategories } from "@/lib/quiz";
 import { McCard, FlashcardCard } from "./quiz-cards";
+import { ResetProgressButton } from "./reset-progress-button";
 
 type Props = {
   terms: QuizTermWithCategories[];
@@ -22,6 +25,9 @@ type Props = {
 
 type Phase = "setup" | "playing" | "done";
 type Result = { term: QuizTerm; correct: boolean };
+
+// Sentinel scope value for the "due for review" option, distinct from any slug.
+const DUE_SCOPE = "__due__";
 
 export function QuizApp({ terms, categories }: Props) {
   // MC needs 4 distinct definitions for its options; the distractor pool is the
@@ -35,10 +41,31 @@ export function QuizApp({ terms, categories }: Props) {
   const [current, setCurrent] = useState(0);
   const [results, setResults] = useState<Result[]>([]);
 
-  const scopedCount = scopeTerms(terms, categorySlug).length;
+  // Spaced-repetition state for this browser. `useSrs` re-renders us whenever a
+  // review is recorded; on the server it's an empty map (see srs-store.ts).
+  const srs = useSrs();
+  const allTermIds = useMemo(() => terms.map((t) => t.id), [terms]);
+  // Snapshot the clock once via a lazy initializer rather than calling
+  // Date.now() in the render body — render must stay pure (react-hooks/purity).
+  // This drives the progress display; start() reads a fresh clock where it
+  // actually matters for selecting the session.
+  const [now] = useState(() => Date.now());
+  const summary = summarize(srs, allTermIds, now);
+  const dueIds = new Set(dueTermIds(srs, allTermIds, now));
+
+  const scopedCount =
+    categorySlug === DUE_SCOPE
+      ? dueIds.size
+      : scopeTerms(terms, categorySlug).length;
 
   function start() {
-    const scoped = scopeTerms(terms, categorySlug);
+    // Fresh clock at click time, so terms reviewed earlier in this same session
+    // are counted as due/not-due correctly.
+    const dueNow = new Set(dueTermIds(srs, allTermIds, Date.now()));
+    const scoped =
+      categorySlug === DUE_SCOPE
+        ? terms.filter((t) => dueNow.has(t.id))
+        : scopeTerms(terms, categorySlug);
     // questionTerms = the scope; distractorPool = the whole glossary, so a small
     // category can still yield 4-option questions.
     setQuestions(buildQuestions(mode, scoped, terms));
@@ -49,6 +76,8 @@ export function QuizApp({ terms, categories }: Props) {
 
   function handleComplete(correct: boolean) {
     const q = questions[current];
+    // Update this term's Leitner schedule, regardless of mode or scope.
+    recordReview(q.term.id, correct);
     setResults((r) => [...r, { term: q.term, correct }]);
     if (current + 1 < questions.length) setCurrent((c) => c + 1);
     else setPhase("done");
@@ -137,6 +166,29 @@ export function QuizApp({ terms, categories }: Props) {
   // phase === "setup"
   return (
     <div className="max-w-md space-y-6">
+      <div className="bg-muted/40 rounded-lg border p-4 text-sm">
+        <p className="font-medium">Your progress (this device)</p>
+        <div className="text-muted-foreground mt-2 flex flex-wrap gap-x-6 gap-y-1">
+          <span>
+            Tracked:{" "}
+            <strong className="text-foreground">{summary.tracked}</strong>
+          </span>
+          <span>
+            Due now:{" "}
+            <strong className="text-foreground">{summary.dueNow}</strong>
+          </span>
+          <span>
+            Mastered:{" "}
+            <strong className="text-foreground">{summary.mastered}</strong>
+          </span>
+        </div>
+        {summary.tracked > 0 && (
+          <div className="mt-3">
+            <ResetProgressButton />
+          </div>
+        )}
+      </div>
+
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium">Mode</legend>
         <div className="flex gap-2">
@@ -183,6 +235,9 @@ export function QuizApp({ terms, categories }: Props) {
           className="bg-background focus-visible:ring-ring/50 block rounded-lg border px-3 py-2 text-sm outline-none focus-visible:ring-3"
         >
           <option value="all">All terms ({terms.length})</option>
+          <option value={DUE_SCOPE} disabled={dueIds.size === 0}>
+            Due for review ({dueIds.size})
+          </option>
           {categories.map((c) => {
             const count = terms.filter((t) =>
               t.categorySlugs.includes(c.slug),
