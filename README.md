@@ -71,9 +71,14 @@ With both running, publishing a term at `/admin` fires the webhook to `http://lo
 ## Running tests
 
 ```bash
-# Web — unit (Vitest) and end-to-end (Playwright)
+# Web — unit tests (Vitest)
 pnpm --filter web test
-pnpm --filter web e2e
+
+# Web — accessibility scan of the public pages (axe + Playwright)
+pnpm --filter web e2e:a11y
+
+# Web — authenticated admin flow (Playwright). LOCAL ONLY — see note below.
+pnpm --filter web e2e:chromium
 
 # Web — lint / types / format
 pnpm --filter web lint
@@ -85,7 +90,7 @@ cd pipelines/enrichment
 uv run ruff check && uv run ruff format --check && uv run mypy . && uv run pytest
 ```
 
-CI (`.github/workflows/ci.yml`) runs the same checks on every push.
+CI (`.github/workflows/ci.yml`) gates merges on three jobs: **web** (lint, typecheck, format, Vitest unit tests), **enrichment**, and **a11y** (the public-page axe scan). The authenticated admin e2e (`e2e:chromium`) is **not** run in CI — it signs in against the shared Supabase project, whose auth endpoint rate-limits CI's IPs and makes the job flaky regardless of app correctness. It's a **local** pre-merge check: run it yourself before merging changes that touch the admin flow.
 
 ## Deploy
 
