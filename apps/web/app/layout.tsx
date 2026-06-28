@@ -58,6 +58,12 @@ export default async function RootLayout({
               <Link href="/" className="text-lg font-semibold">
                 DE Glossary
               </Link>
+              <Link
+                href="/quiz"
+                className="text-muted-foreground hover:text-foreground text-sm font-medium"
+              >
+                Quiz
+              </Link>
               <SearchBox />
               <ProfileMenu email={email} isAdmin={isAdmin} />
             </div>

@@ -28,6 +28,11 @@ test("search results page has no a11y violations", async ({ page }) => {
   await scan(page);
 });
 
+test("quiz page has no a11y violations", async ({ page }) => {
+  await page.goto("/quiz");
+  await scan(page);
+});
+
 test("a term detail page has no a11y violations", async ({ page }) => {
   // Pull a real term slug off the home page rather than hard-coding one, then
   // do a full navigation to it. A hard goto (not a client-side click) means
